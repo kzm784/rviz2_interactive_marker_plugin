@@ -1,0 +1,5 @@
+<library path="rviz2_interactive_marker_plugin">
+  <class name="interactive_marker_plugin/InteractiveMarkerTool" type="interactive_marker_plugin::InteractiveMarkerTool" base_class_type="rviz_common::Tool">
+    <description>Add interactive marker</description>
+  </class>
+</library>
