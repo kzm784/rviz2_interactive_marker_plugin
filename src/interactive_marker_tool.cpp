@@ -1,3 +1,13 @@
+#include <QObject>
+#include <QTimer>
+#include <QMetaObject>
+#include <rviz_common/tool_manager.hpp>
+#include <rviz_common/view_manager.hpp>
+#include <rviz_common/render_panel.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rviz_common/tool.hpp>
+#include <rviz_common/display_context.hpp>
+#include <chrono>
 #include "rviz2_interactive_marker_plugin/interactive_marker_tool.hpp"
 
 namespace interactive_marker_plugin
@@ -5,8 +15,7 @@ namespace interactive_marker_plugin
 
 using namespace std::chrono_literals;
 
-InteractiveMarkerTool::InteractiveMarkerTool()
-  : rviz_common::Tool(), marker_count_(0)
+InteractiveMarkerTool::InteractiveMarkerTool() : rviz_common::Tool(), marker_count_(0)
 {
 }
 
@@ -30,7 +39,6 @@ void InteractiveMarkerTool::onInitialize()
     rclcpp::QoS(10)
   );
 
-  // Create projection finder for mouse intersection calculation.
   projection_finder_ = std::make_shared<rviz_rendering::ViewportProjectionFinder>();
 }
 
@@ -69,28 +77,37 @@ visualization_msgs::msg::InteractiveMarker InteractiveMarkerTool::createInteract
   pos_control.orientation.z = 0.0;
   int_marker.controls.push_back(pos_control);
 
-  // Rotation control (arrow)
-  visualization_msgs::msg::InteractiveMarkerControl rot_control;
-  rot_control.name = "rotate_yaw";
-  rot_control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
-  rot_control.orientation.w = 0.7071;
-  rot_control.orientation.x = 0.0;
-  rot_control.orientation.y = -0.7071;
-  rot_control.orientation.z = 0.0;
+  visualization_msgs::msg::InteractiveMarkerControl rot_control_default;
+  rot_control_default.name = "rotate_yaw_default";
+  rot_control_default.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  rot_control_default.orientation.w = 0.7071;
+  rot_control_default.orientation.x = 0.0;
+  rot_control_default.orientation.y = -0.7071;
+  rot_control_default.orientation.z = 0.0;
+  rot_control_default.always_visible = true;
+  int_marker.controls.push_back(rot_control_default);
+
+  visualization_msgs::msg::InteractiveMarkerControl rot_control_arrow;
+  rot_control_arrow.name = "rotate_yaw_arrow";
+  rot_control_arrow.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::NONE;
+  rot_control_arrow.orientation.w = 0.7071;
+  rot_control_arrow.orientation.x = 0.0;
+  rot_control_arrow.orientation.y = -0.7071;
+  rot_control_arrow.orientation.z = 0.0;
   {
     visualization_msgs::msg::Marker arrow;
     arrow.type = visualization_msgs::msg::Marker::ARROW;
-    arrow.scale.x = 0.4;
+    arrow.scale.x = 0.3;
     arrow.scale.y = 0.075;
     arrow.scale.z = 0.075;
     arrow.color.r = 1.0;
     arrow.color.g = 0.0;
     arrow.color.b = 0.0;
     arrow.color.a = 1.0;
-    rot_control.markers.push_back(arrow);
+    rot_control_arrow.markers.push_back(arrow);
   }
-  rot_control.always_visible = true;
-  int_marker.controls.push_back(rot_control);
+  rot_control_arrow.always_visible = true;
+  int_marker.controls.push_back(rot_control_arrow);
 
   // Text control
   visualization_msgs::msg::InteractiveMarkerControl text_control;
@@ -98,17 +115,19 @@ visualization_msgs::msg::InteractiveMarker InteractiveMarkerTool::createInteract
   text_control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::NONE;
   text_control.always_visible = true;
   {
+    visualization_msgs::msg::Marker text;
+    text.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+    text.scale.z = 0.2;
+    text.color.r = 1.0;
+    text.color.g = 1.0;
+    text.color.b = 1.0;
+    text.color.a = 1.0;
     std::string id_text = "ID:" + marker_name.substr(marker_name.find("_") + 1);
-    visualization_msgs::msg::Marker text_marker;
-    text_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-    text_marker.scale.z = 0.2;
-    text_marker.color.r = 1.0;
-    text_marker.color.g = 1.0;
-    text_marker.color.b = 1.0;
-    text_marker.color.a = 1.0;
-    text_marker.text = id_text;
-    text_marker.pose.position.z = 0.5;
-    text_control.markers.push_back(text_marker);
+    text.text = id_text;
+    text.pose.position.x = -0.3;
+    text.pose.position.y = -0.3;
+    text.pose.position.z = 0.3;
+    text_control.markers.push_back(text);
   }
   int_marker.controls.push_back(text_control);
 
@@ -119,7 +138,6 @@ int InteractiveMarkerTool::processMouseEvent(rviz_common::ViewportMouseEvent & e
 {
   if (event.leftDown())
   {
-    // Use the projection finder to calculate intersection on the XY plane.
     auto projection = projection_finder_->getViewportPointProjectionOnXYPlane(
       event.panel->getRenderWindow(), event.x, event.y);
     Ogre::Vector3 intersection = projection.second;
@@ -137,17 +155,10 @@ int InteractiveMarkerTool::processMouseEvent(rviz_common::ViewportMouseEvent & e
   return 0;
 }
 
-void InteractiveMarkerTool::activate()
-{
-  // No initialization required on activation.
-}
+void InteractiveMarkerTool::activate() {}
+void InteractiveMarkerTool::deactivate() {}
 
-void InteractiveMarkerTool::deactivate()
-{
-  // No deactivation processing required.
-}
-
-}  // namespace interactive_marker_plugin
+} // namespace interactive_marker_plugin
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(interactive_marker_plugin::InteractiveMarkerTool, rviz_common::Tool)
